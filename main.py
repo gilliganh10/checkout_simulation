@@ -4,7 +4,7 @@ from src.simulation.customer import TimePeriod
 from src.simulation.environment import run_simulation
 
 def main():
-    sim_env = run_simulation(duration=12*60)  # Run for 12 hours
+    sim_env = run_simulation()  # Run for 12 hours
     return sim_env
 
 if __name__ == "__main__":
