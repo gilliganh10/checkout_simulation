@@ -12,7 +12,14 @@ class SimulationEnvironment:
         self.customer_types = Counter()
         self.time_period_stats = {period: Counter() for period in TimePeriod}
         self.queue_log = []
-    
+        self.current_time = 0
+        self.initial_counters = initial_counters
+
+    def step(self):
+        # Advance the simulation by one time step (e.g., 1 minute)
+        self.env.run(until=self.current_time + 1)
+        self.current_time += 1
+
     def log_queue_length(self):
         queue_lengths = [checkout.get_queue_length() for checkout in self.checkouts]
         total_queue_length = sum(queue_lengths)
@@ -55,6 +62,17 @@ class SimulationEnvironment:
     def get_average_queue_length(self):
         queue_lengths = [checkout.get_queue_length() for checkout in self.checkouts]
         return mean(queue_lengths) if queue_lengths else 0
+    
+    def add_checkout(self):
+        self.checkouts.append(Checkout(self.env, len(self.checkouts)))
+
+    def remove_checkout(self):
+        if len(self.checkouts) > 3:  # Ensure at least 3 checkouts remain open
+            checkout_to_remove = min(self.checkouts, key=lambda x: x.get_queue_length())
+            self.checkouts.remove(checkout_to_remove)
+
+    def get_current_time_period(self):
+        return get_time_period(self.current_time)
 
     def manage_counters(self):
         while True:
