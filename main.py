@@ -1,5 +1,5 @@
 from src.simulation.environment import SimulationEnvironment
-from src.agents.q_learning_agent import QLearningAgent, train_agent, find_optimal_checkouts
+from src.agents.q_learning_agent import QLearningAgent, train_agent, plot_metrics,find_optimal_checkouts
 from src.simulation.customer import TimePeriod, get_time_period
 import matplotlib.pyplot as plt
 
@@ -18,6 +18,7 @@ def main():
     # Find and print the optimal number of checkouts
     env = SimulationEnvironment()  # Create a sample environment
     optimal_checkouts = find_optimal_checkouts(agent, env)
+    plot_metrics(env)
 
     print("\nOptimal number of checkouts by hour and time period:")
     for hour in range(24):

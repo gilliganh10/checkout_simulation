@@ -40,7 +40,8 @@ class SimulationEnvironment:
 
     def run(self):
         self.env.process(self.customer_generator_process())
-        self.env.process(self.manage_counters())
+        # Remove the manage_counters process to disable automatic counter management
+        # self.env.process(self.manage_counters())
         self.env.process(self.queue_logger_process())
         self.env.run(until=self.duration)
         self.print_statistics()
@@ -74,20 +75,21 @@ class SimulationEnvironment:
     def get_current_time_period(self):
         return get_time_period(self.current_time)
 
-    def manage_counters(self):
-        while True:
-            yield self.env.timeout(5)  # Check every 5 minutes
-            avg_queue_length = self.get_average_queue_length()
-            current_counters = len(self.checkouts)
+    # Remove the manage_counters method to avoid confusion
+    # def manage_counters(self):
+    #     while True:
+    #         yield self.env.timeout(5)  # Check every 5 minutes
+    #         avg_queue_length = self.get_average_queue_length()
+    #         current_counters = len(self.checkouts)
 
-            if avg_queue_length > 5 and current_counters < 20:  # Increased max counters to 20
-                print(f"\nAdding a new checkout. Current average queue length: {avg_queue_length:.2f}")
-                self.checkouts.append(Checkout(self.env, len(self.checkouts)))
-            elif avg_queue_length < 2 and current_counters > 3:  # Ensuring at least 3 checkouts are always open
-                print(f"\nRemoving a checkout. Current average queue length: {avg_queue_length:.2f}")
-                # Remove the checkout with the shortest queue
-                checkout_to_remove = min(self.checkouts, key=lambda x: x.get_queue_length())
-                self.checkouts.remove(checkout_to_remove)
+    #         if avg_queue_length > 2.5 and current_counters < 20:  # Increased max counters to 20
+    #             print(f"\nAdding a new checkout. Current average queue length: {avg_queue_length:.2f}")
+    #             self.checkouts.append(Checkout(self.env, len(self.checkouts)))
+    #         elif avg_queue_length < 2 and current_counters > 2:  # Ensuring at least 3 checkouts are always open
+    #             print(f"\nRemoving a checkout. Current average queue length: {avg_queue_length:.2f}")
+    #             # Remove the checkout with the shortest queue
+    #             checkout_to_remove = min(self.checkouts, key=lambda x: x.get_queue_length())
+    #             self.checkouts.remove(checkout_to_remove)
 
     def print_statistics(self):
         print("\nOverall customer type statistics:")

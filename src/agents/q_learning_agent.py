@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 from collections import defaultdict
 from src.simulation.environment import SimulationEnvironment
 from src.simulation.customer import TimePeriod
@@ -63,8 +64,19 @@ def calculate_reward(env):
     avg_queue_length = env.get_average_queue_length()
     n_checkouts = len(env.checkouts)
     
-    # Penalize long queues and too many open checkouts
-    return -avg_queue_length - 0.5 * n_checkouts
+    # Base penalty
+    reward = -avg_queue_length - 0.5 * n_checkouts
+    
+    # Severe penalty for queue length exceeding 2.5
+    print(avg_queue_length)
+    if avg_queue_length > 2.5:
+        reward -= (avg_queue_length - 2.5) ** 1  # Quadratic penalty for severity
+    
+    # Severe penalty for more than 5 checkouts
+    if n_checkouts > 5:
+        reward -= (n_checkouts - 5) ** 1  # Quadratic penalty for severity
+    
+    return reward
 
 def train_agent(n_episodes=1000):
     agent = QLearningAgent(n_actions=3)  # 3 actions: do nothing, add checkout, remove checkout
@@ -109,3 +121,26 @@ def find_optimal_checkouts(agent, env):
     
     return optimal_checkouts
 
+def plot_metrics(env):
+    # Extracting logged data
+    times = [log[0] for log in env.queue_log]
+    avg_queue_lengths = [np.mean(log[1]) for log in env.queue_log]
+    num_checkouts = [log[2] for log in env.queue_log]
+    
+    # Plotting Average Queue Length over Time
+    plt.figure(figsize=(12, 6))
+    plt.plot(times, avg_queue_lengths, label='Average Queue Length')
+    plt.xlabel('Time (minutes)')
+    plt.ylabel('Average Queue Length')
+    plt.title('Average Queue Length over Time')
+    plt.legend()
+    plt.show()
+    
+    # Plotting Number of Checkouts over Time
+    plt.figure(figsize=(12, 6))
+    plt.plot(times, num_checkouts, label='Number of Checkouts', color='orange')
+    plt.xlabel('Time (minutes)')
+    plt.ylabel('Number of Checkouts')
+    plt.title('Number of Checkouts over Time')
+    plt.legend()
+    plt.show()
