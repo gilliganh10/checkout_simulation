@@ -47,10 +47,10 @@ class SimulationEnvironment:
             total_queue_length = self.get_total_queue_length()
             current_counters = len(self.checkout_counters)
 
-            if total_queue_length > 5 and current_counters < 100:  # Assuming a maximum of 5 counters
+            if total_queue_length > 5 and current_counters < 100:  # Assuming a maximum of 100 counters
                 print(f"Adding a counter. Queue length: {total_queue_length}")
                 self.checkout_counters.append(simpy.Resource(self.env, capacity=1))
-            elif total_queue_length < 3 and current_counters > 1:  # Ensuring at least 1 counter is always open
+            elif total_queue_length < 5 and current_counters > 5:  # Ensuring at least 1 counter is always open
                 print(f"Removing a counter. Queue length: {total_queue_length}")
                 self.checkout_counters.pop()
 
@@ -71,6 +71,7 @@ class SimulationEnvironment:
                     print(f"  {customer_type.name}: {count}")
 
 def run_simulation(duration=24*60):
-    sim_env = SimulationEnvironment(duration=duration)
+    sim_env = SimulationEnvironment(duration=duration - 6*60)  # Run for the adjusted duration starting at 6 AM
     sim_env.run()
     return sim_env
+

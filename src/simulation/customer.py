@@ -12,6 +12,7 @@ class TimePeriod(Enum):
     LUNCH = 2
     AFTERNOON = 3
     EVENING = 4
+    NIGHT = 5
 
 class Customer:
     def __init__(self, name, customer_type):
@@ -27,10 +28,10 @@ class Customer:
             return random.uniform(10, 30)
 
     def checkout_time(self):
-        return random.uniform(1, 5)
+        return random.uniform(0.5, 2)
 
 def get_time_period(current_time):
-    hours = (current_time % (24 * 60)) // 60  # Convert to hours within a day
+    hours = ((current_time + 6*60) % (24 * 60)) // 60  # Convert to hours within a day starting at 6 AM
     if 6 <= hours < 8:
         return TimePeriod.EARLY_MORNING
     elif 8 <= hours < 11:
@@ -39,16 +40,19 @@ def get_time_period(current_time):
         return TimePeriod.LUNCH
     elif 14 <= hours < 17:
         return TimePeriod.AFTERNOON
-    else:
+    elif 17 <= hours < 21:
         return TimePeriod.EVENING
+    else:
+        return TimePeriod.NIGHT  
 
 def get_arrival_rate(time_period):
     rates = {
-        TimePeriod.EARLY_MORNING: 1/1,  # One customer every 5 minutes on average
-        TimePeriod.MORNING: 1/1,       # One customer every 3 minutes on average
-        TimePeriod.LUNCH: 1/.25,         # One customer every 1 minute on average
-        TimePeriod.AFTERNOON: 1/2,     # One customer every 4 minutes on average
-        TimePeriod.EVENING: 1/1        # One customer every 2 minutes on average
+        TimePeriod.EARLY_MORNING: 1/1,  
+        TimePeriod.MORNING: 2/1,       
+        TimePeriod.LUNCH: 5/1,         
+        TimePeriod.AFTERNOON: 1/1,     
+        TimePeriod.EVENING: 1/1,        
+        TimePeriod.NIGHT: 1/10        
     }
     return rates[time_period]
 
@@ -58,7 +62,8 @@ def get_customer_type_probabilities(time_period):
         TimePeriod.MORNING: [0.4, 0.4, 0.2],
         TimePeriod.LUNCH: [0.7, 0.2, 0.1],
         TimePeriod.AFTERNOON: [0.3, 0.5, 0.2],
-        TimePeriod.EVENING: [0.2, 0.5, 0.3]
+        TimePeriod.EVENING: [0.2, 0.5, 0.3],
+        TimePeriod.NIGHT: [0.1, 0.6, 0.3]  # Adjust as needed
     }
     return probabilities[time_period]
 
