@@ -1,5 +1,5 @@
-import random
 from enum import Enum
+import random
 
 class CustomerType(Enum):
     QUICK = 1
@@ -44,11 +44,11 @@ def get_time_period(current_time):
 
 def get_arrival_rate(time_period):
     rates = {
-        TimePeriod.EARLY_MORNING: 1/1,  # One customer every 5 minutes on average
-        TimePeriod.MORNING: 1/0.5,       # One customer every 3 minutes on average
-        TimePeriod.LUNCH: 1/0.25,          # One customer every 1 minute on average
-        TimePeriod.AFTERNOON: 1/1,     # One customer every 4 minutes on average
-        TimePeriod.EVENING: 1/0.5        # One customer every 2 minutes on average
+        TimePeriod.EARLY_MORNING: 1/5,  # One customer every 5 minutes on average
+        TimePeriod.MORNING: 1/3,       # One customer every 3 minutes on average
+        TimePeriod.LUNCH: 1/1,         # One customer every 1 minute on average
+        TimePeriod.AFTERNOON: 1/4,     # One customer every 4 minutes on average
+        TimePeriod.EVENING: 1/2        # One customer every 2 minutes on average
     }
     return rates[time_period]
 
@@ -63,21 +63,17 @@ def get_customer_type_probabilities(time_period):
     return probabilities[time_period]
 
 def customer_process(env, customer, checkout_counters, stats_updater):
-    print(f'{customer.name} arrives at the store at {env.now:.2f}')
     stats_updater(customer, env.now)  # Update statistics when customer arrives
     shopping_time = customer.shopping_time()
     yield env.timeout(shopping_time)
-    print(f'{customer.name} finishes shopping and arrives at checkout at {env.now:.2f}')
     
     counter = min(checkout_counters, key=lambda x: len(x.queue))
-    print(f'{customer.name} chooses counter with queue length {len(counter.queue)}')
     
     with counter.request() as request:
         yield request
-        print(f'{customer.name} starts checkout at {env.now:.2f}')
         checkout_time = customer.checkout_time()
         yield env.timeout(checkout_time)
-        print(f'{customer.name} leaves the store at {env.now:.2f}')
+        # Customer leaves the counter here, and resource is released automatically
 
 def customer_generator(env, checkout_counters, stats_updater):
     i = 0

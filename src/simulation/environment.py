@@ -1,14 +1,12 @@
 import simpy
 from collections import Counter
-from .customer import customer_generator, customer_process, Customer, CustomerType, get_time_period, TimePeriod
-from ..agents.q_learning_agent import QLearningAgent
+from .customer import customer_generator, get_time_period, TimePeriod
 
 class SimulationEnvironment:
-    def __init__(self, duration=720, initial_counters=2, n_states=125, n_actions=5):
+    def __init__(self, duration=720, initial_counters=2):
         self.env = simpy.Environment()
         self.duration = duration
         self.checkout_counters = [simpy.Resource(self.env, capacity=1) for _ in range(initial_counters)]
-        self.agent = None  # Will be set later
         self.customer_types = Counter()
         self.time_period_stats = {period: Counter() for period in TimePeriod}
         self.queue_log = []
@@ -26,7 +24,6 @@ class SimulationEnvironment:
         self.env.process(self.queue_logger_process())
         self.env.run(until=self.duration)
         self.print_statistics()
-        return self.agent
 
     def queue_logger_process(self):
         while True:
@@ -41,67 +38,23 @@ class SimulationEnvironment:
     def customer_generator_process(self):
         return customer_generator(self.env, self.checkout_counters, self.update_customer_stats)
 
-    def get_current_state(self):
-        queue_length = sum(len(counter.queue) for counter in self.checkout_counters)
-        n_counters = len(self.checkout_counters)
-        current_time_period = get_time_period(self.env.now)
-        
-        # Discretize the state space
-        if queue_length == 0:
-            queue_state = 0
-        elif queue_length <= 5:
-            queue_state = 1
-        elif queue_length <= 10:
-            queue_state = 2
-        elif queue_length <= 20:
-            queue_state = 3
-        else:
-            queue_state = 4
-        
-        # Combine time period, queue state, and number of counters into a single state
-        return current_time_period.value * 25 + queue_state * 5 + (n_counters - 1)
-
-    def get_reward(self, state, action):
-        queue_length = sum(len(counter.queue) for counter in self.checkout_counters)
-        n_counters = action + 1
-        current_time_period = get_time_period(self.env.now)
-        
-        # Cost per counter per time unit
-        counter_cost = 10
-        
-        # Estimated cost of customer waiting (higher during busy periods)
-        wait_cost = 5 if current_time_period in [TimePeriod.LUNCH, TimePeriod.EVENING] else 2
-        
-        # Calculate total cost
-        total_cost = (counter_cost * n_counters) + (wait_cost * queue_length)
-        
-        # Convert cost to reward (negative cost)
-        reward = -total_cost
-        
-        return reward
+    def get_total_queue_length(self):
+        return sum(len(counter.queue) for counter in self.checkout_counters)
 
     def manage_counters(self):
         while True:
             yield self.env.timeout(5)  # Check every 5 minutes
-            self.log_queue_length()  # Log before taking action
-            current_state = self.get_current_state()
-            action = self.agent.choose_action(current_state)
-            self.adjust_counters(action)
-            yield self.env.timeout(5)  # Wait for 5 minutes to see the effect
-            self.log_queue_length()  # Log after taking action
-            next_state = self.get_current_state()
-            reward = self.get_reward(next_state, action)
-            self.agent.learn(current_state, action, reward, next_state)
+            total_queue_length = self.get_total_queue_length()
+            current_counters = len(self.checkout_counters)
 
-    def adjust_counters(self, action):
-        required_counters = action + 1  # Ensure at least one counter is open
-        current_counters = len(self.checkout_counters)
-        if required_counters > current_counters:
-            for _ in range(required_counters - current_counters):
+            if total_queue_length > 5 and current_counters < 5:  # Assuming a maximum of 5 counters
+                print(f"Adding a counter. Queue length: {total_queue_length}")
                 self.checkout_counters.append(simpy.Resource(self.env, capacity=1))
-        elif required_counters < current_counters:
-            for _ in range(current_counters - required_counters):
+            elif total_queue_length < 3 and current_counters > 1:  # Ensuring at least 1 counter is always open
+                print(f"Removing a counter. Queue length: {total_queue_length}")
                 self.checkout_counters.pop()
+
+            self.log_queue_length()
 
     def print_statistics(self):
         print("Overall customer type statistics:")
@@ -116,13 +69,8 @@ class SimulationEnvironment:
             else:
                 for customer_type, count in stats.items():
                     print(f"  {customer_type.name}: {count}")
-        """
-        print("\nQueue Length Log:")
-        for time, queue_length, n_counters in self.queue_log:
-            if queue_length > 0:
-                print(f"Time: {time:.2f}, Queue Length: {queue_length}, Open Counters: {n_counters}")
-"""
+
 def run_simulation(duration=24*60):
-    sim_env = SimulationEnvironment(duration=duration, n_states=125, n_actions=5)
-    sim_env.agent = QLearningAgent(n_states=125, n_actions=5, alpha=0.1, gamma=0.99, epsilon=0.1)
-    return sim_env.run()
+    sim_env = SimulationEnvironment(duration=duration)
+    sim_env.run()
+    return sim_env
