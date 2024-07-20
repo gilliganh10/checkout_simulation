@@ -27,7 +27,7 @@ class Customer:
             return random.uniform(10, 30)
 
     def checkout_time(self):
-        return random.uniform(2, 20)
+        return random.uniform(1, 5)
 
 def get_time_period(current_time):
     hours = (current_time % (24 * 60)) // 60  # Convert to hours within a day
@@ -44,11 +44,11 @@ def get_time_period(current_time):
 
 def get_arrival_rate(time_period):
     rates = {
-        TimePeriod.EARLY_MORNING: 1/5,  # One customer every 5 minutes on average
-        TimePeriod.MORNING: 1/3,       # One customer every 3 minutes on average
-        TimePeriod.LUNCH: 1/1,         # One customer every 1 minute on average
-        TimePeriod.AFTERNOON: 1/4,     # One customer every 4 minutes on average
-        TimePeriod.EVENING: 1/2        # One customer every 2 minutes on average
+        TimePeriod.EARLY_MORNING: 1/1,  # One customer every 5 minutes on average
+        TimePeriod.MORNING: 1/1,       # One customer every 3 minutes on average
+        TimePeriod.LUNCH: 1/.25,         # One customer every 1 minute on average
+        TimePeriod.AFTERNOON: 1/2,     # One customer every 4 minutes on average
+        TimePeriod.EVENING: 1/1        # One customer every 2 minutes on average
     }
     return rates[time_period]
 

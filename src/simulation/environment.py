@@ -43,11 +43,11 @@ class SimulationEnvironment:
 
     def manage_counters(self):
         while True:
-            yield self.env.timeout(5)  # Check every 5 minutes
+            yield self.env.timeout(1)  # Check every 5 minutes
             total_queue_length = self.get_total_queue_length()
             current_counters = len(self.checkout_counters)
 
-            if total_queue_length > 5 and current_counters < 5:  # Assuming a maximum of 5 counters
+            if total_queue_length > 5 and current_counters < 100:  # Assuming a maximum of 5 counters
                 print(f"Adding a counter. Queue length: {total_queue_length}")
                 self.checkout_counters.append(simpy.Resource(self.env, capacity=1))
             elif total_queue_length < 3 and current_counters > 1:  # Ensuring at least 1 counter is always open
