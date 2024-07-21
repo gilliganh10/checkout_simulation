@@ -92,6 +92,8 @@ def customer_process(env, customer, checkouts, stats_updater):
         yield request
         checkout_time = customer.checkout_time()
         yield env.timeout(checkout_time)
+    print(f"Customer {customer.name} joined queue of Checkout {chosen_checkout.id} at time {env.now}")
+
 
 def customer_generator(env, checkouts, stats_updater):
     i = 0

@@ -32,60 +32,66 @@ def run_episode(env, agent, episode):
     state = agent.get_state(env)
     total_reward = 0
     
+    print(f"Starting episode {episode}")
+    
     for step in range(env.duration):
         action = agent.choose_action(state)
         
-        # Apply the action (e.g., add or remove checkouts)
+        #print(f"Step {step}: Chosen action: {action}")
+        
         if action == 0:  # Do nothing
             pass
         elif action == 1:  # Add a checkout
             env.add_checkout()
+            #print(f"Added checkout. Total checkouts: {len(env.checkouts)}")
         elif action == 2:  # Remove a checkout
             env.remove_checkout()
+            #print(f"Removed checkout. Total checkouts: {len(env.checkouts)}")
         
-        # Run the simulation for one time step
         env.step()
         
-        # Calculate the reward (e.g., based on average queue length and number of checkouts)
         reward = calculate_reward(env)
         total_reward += reward
         
         next_state = agent.get_state(env)
         
-        # Learn from this transition
         agent.learn(state, action, reward, next_state)
         
         state = next_state
+        
+        #print(f"Step {step} completed. Reward: {reward}, Total reward: {total_reward}")
     
     print(f"Episode {episode} completed with total reward: {total_reward}")
     return total_reward
+
 
 def calculate_reward(env):
     avg_queue_length = env.get_average_queue_length()
     n_checkouts = len(env.checkouts)
     
-    # Base penalty
     reward = -avg_queue_length - 0.5 * n_checkouts
     
-    # Severe penalty for queue length exceeding 2.5
-    print(avg_queue_length)
-    if avg_queue_length > 2.5:
-        reward -= (avg_queue_length - 2.5) ** 1  # Quadratic penalty for severity
+    #print(f"Calculating reward: avg_queue_length = {avg_queue_length}, n_checkouts = {n_checkouts}")
     
-    # Severe penalty for more than 5 checkouts
-    if n_checkouts > 5:
-        reward -= (n_checkouts - 5) ** 1  # Quadratic penalty for severity
+    if avg_queue_length > 2.5:
+        reward -= (avg_queue_length - 2.5) ** 2
+    
+    if n_checkouts > 4:
+        reward -= (n_checkouts - 5) ** 2
+    
     
     return reward
 
 def train_agent(n_episodes=1000):
-    agent = QLearningAgent(n_actions=3)  # 3 actions: do nothing, add checkout, remove checkout
+    agent = QLearningAgent(n_actions=3)
     rewards = []
     
     for episode in range(n_episodes):
+        #print(f"\nStarting episode {episode}")
         env = SimulationEnvironment()
         episode_reward = run_episode(env, agent, episode)
         rewards.append(episode_reward)
+        #print(f"Episode {episode} completed. Total reward: {episode_reward}")
     
     return agent, rewards
 

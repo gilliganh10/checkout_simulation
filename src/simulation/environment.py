@@ -1,11 +1,14 @@
+# In environment.py
+
 import simpy
 from collections import Counter
 from statistics import mean
-from .customer import customer_generator, get_time_period, TimePeriod
+from .customer import customer_generator, get_time_period, TimePeriod, Customer, CustomerType
 from .checkout import Checkout
+import random
 
 class SimulationEnvironment:
-    def __init__(self, duration=1020, initial_counters=5):  # 1020 minutes = 17 hours (06:00 to 23:00)
+    def __init__(self, duration=1020, initial_counters=5):
         self.env = simpy.Environment()
         self.duration = duration
         self.checkouts = [Checkout(self.env, i) for i in range(initial_counters)]
@@ -14,82 +17,77 @@ class SimulationEnvironment:
         self.queue_log = []
         self.current_time = 0
         self.initial_counters = initial_counters
+        self.customer_count = 0
+
+        # Start the customer generator process
+        self.env.process(self.customer_generator_process())
 
     def step(self):
-        # Advance the simulation by one time step (e.g., 1 minute)
+        #print(f"Stepping simulation at time {self.current_time}")
         self.env.run(until=self.current_time + 1)
         self.current_time += 1
-
-    def log_queue_length(self):
-        queue_lengths = [checkout.get_queue_length() for checkout in self.checkouts]
-        total_queue_length = sum(queue_lengths)
-        avg_queue_length = mean(queue_lengths) if queue_lengths else 0
-        n_counters = len(self.checkouts)
-        self.queue_log.append((self.env.now, queue_lengths, n_counters))
-        
-        current_time = (self.env.now + 360) % 1440  # Convert to 24-hour clock
-        hours, minutes = divmod(current_time, 60)
-        
-        print(f"\nTime: {hours:02d}:{minutes:02d}")
-        print(f"Total Queue Length: {total_queue_length}")
-        print(f"Average Queue Length: {avg_queue_length:.2f}")
-        print(f"Open Counters: {n_counters}")
-        print("Queue lengths for each checkout:")
-        for i, length in enumerate(queue_lengths):
-            print(f"  Checkout {i}: {length} customers")
-
-    def run(self):
-        self.env.process(self.customer_generator_process())
-        # Remove the manage_counters process to disable automatic counter management
-        # self.env.process(self.manage_counters())
-        self.env.process(self.queue_logger_process())
-        self.env.run(until=self.duration)
-        self.print_statistics()
-
-    def queue_logger_process(self):
-        while True:
-            yield self.env.timeout(15)  # Log every 15 minutes
-            self.log_queue_length()
-
-    def update_customer_stats(self, customer, time):
-        self.customer_types[customer.type] += 1
-        current_time = (time + 360) % 1440  # Convert to 24-hour clock
-        current_time_period = get_time_period(current_time)
-        self.time_period_stats[current_time_period][customer.type] += 1
+        self.update_queue_lengths()
 
     def customer_generator_process(self):
-        return customer_generator(self.env, self.checkouts, self.update_customer_stats)
+        while True:
+            yield self.env.timeout(random.expovariate(1/5))  # Generate a customer every 5 minutes on average
+            self.customer_count += 1
+            customer = Customer(f'Customer {self.customer_count}', random.choice(list(CustomerType)))
+            #print(f"Generated {customer.name} at time {self.env.now}")
+            self.env.process(self.customer_process(customer))
+
+    def customer_process(self, customer):
+        #print(f"Processing {customer.name} at time {self.env.now}")
+        shopping_time = customer.shopping_time()
+        yield self.env.timeout(shopping_time)
+        
+        chosen_checkout = min(self.checkouts, key=lambda x: x.get_queue_length())
+        #print(f"{customer.name} choosing checkout {chosen_checkout.id} at time {self.env.now}")
+        
+        chosen_checkout.update_queue_length(1)  # Increment queue length
+        #print(f"Queue length for checkout {chosen_checkout.id} is now {chosen_checkout.get_queue_length()}")
+        
+        with chosen_checkout.queue.request() as request:
+            yield request
+            #print(f"{customer.name} started checkout at {chosen_checkout.id} at time {self.env.now}")
+            checkout_time = customer.checkout_time()
+            yield self.env.timeout(checkout_time)
+        
+        chosen_checkout.update_queue_length(-1)  # Decrement queue length
+        #print(f"{customer.name} finished checkout at time {self.env.now}")
+        #print(f"Queue length for checkout {chosen_checkout.id} is now {chosen_checkout.get_queue_length()}")
+
+    def update_queue_lengths(self):
+        queue_lengths = [checkout.get_queue_length() for checkout in self.checkouts]
+        #print(f"Current time: {self.current_time}, Queue lengths: {queue_lengths}")
+        #print(f"Total customers generated: {self.customer_count}")
+        self.queue_log.append((self.current_time, queue_lengths, len(self.checkouts)))
 
     def get_average_queue_length(self):
         queue_lengths = [checkout.get_queue_length() for checkout in self.checkouts]
-        return mean(queue_lengths) if queue_lengths else 0
-    
+        avg_length = mean(queue_lengths) if queue_lengths else 0
+        #print(f"Average queue length: {avg_length}")
+        return avg_length
+
     def add_checkout(self):
-        self.checkouts.append(Checkout(self.env, len(self.checkouts)))
+        new_checkout = Checkout(self.env, len(self.checkouts))
+        self.checkouts.append(new_checkout)
+        #print(f"Added new checkout. Total checkouts: {len(self.checkouts)}")
 
     def remove_checkout(self):
         if len(self.checkouts) > 3:  # Ensure at least 3 checkouts remain open
             checkout_to_remove = min(self.checkouts, key=lambda x: x.get_queue_length())
             self.checkouts.remove(checkout_to_remove)
+            #print(f"Removed a checkout. Total checkouts: {len(self.checkouts)}")
 
     def get_current_time_period(self):
         return get_time_period(self.current_time)
 
-    # Remove the manage_counters method to avoid confusion
-    # def manage_counters(self):
-    #     while True:
-    #         yield self.env.timeout(5)  # Check every 5 minutes
-    #         avg_queue_length = self.get_average_queue_length()
-    #         current_counters = len(self.checkouts)
-
-    #         if avg_queue_length > 2.5 and current_counters < 20:  # Increased max counters to 20
-    #             print(f"\nAdding a new checkout. Current average queue length: {avg_queue_length:.2f}")
-    #             self.checkouts.append(Checkout(self.env, len(self.checkouts)))
-    #         elif avg_queue_length < 2 and current_counters > 2:  # Ensuring at least 3 checkouts are always open
-    #             print(f"\nRemoving a checkout. Current average queue length: {avg_queue_length:.2f}")
-    #             # Remove the checkout with the shortest queue
-    #             checkout_to_remove = min(self.checkouts, key=lambda x: x.get_queue_length())
-    #             self.checkouts.remove(checkout_to_remove)
+    def run(self):
+        print("Starting simulation")
+        self.env.run(until=self.duration)
+        print("Simulation completed")
+        self.print_statistics()
 
     def print_statistics(self):
         print("\nOverall customer type statistics:")
@@ -104,6 +102,13 @@ class SimulationEnvironment:
             else:
                 for customer_type, count in stats.items():
                     print(f"  {customer_type.name}: {count}")
+
+    def update_customer_stats(self, customer, time):
+        self.customer_types[customer.type] += 1
+        current_time = (time + 360) % 1440  # Convert to 24-hour clock
+        current_time_period = get_time_period(current_time)
+        self.time_period_stats[current_time_period][customer.type] += 1
+    
 
 def run_simulation():
     sim_env = SimulationEnvironment()
